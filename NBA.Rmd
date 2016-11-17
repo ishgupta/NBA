@@ -1,0 +1,75 @@
+---
+title: "NBA"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+NBA Basketball matches record the data for strategies and scores applied and achieved by the teams. This exercise builds a model using the important features which actually reflect the number of points achevied by a Team.
+
+```{r, message=FALSE}
+library(readr)
+library(dplyr)
+
+```
+
+
+```{r}
+train <- read_csv("NBA_train.csv")
+
+glimpse(train)
+
+train$PTSDiff <- train$PTS - train$oppPTS
+plot(train$PTS - train$oppPTS, train$W)
+
+Wins_Reg <- lm(W ~ PTSDiff, data=train)
+
+summary(Wins_Reg)
+
+# that means, W = 41 + 0.03259 * PTSDiff
+#to get Wins >=42; required PTSDiff = (42 - 41)/0.03259 = 30.68
+# Since, Adjusted R squared is 0.94, and the F-statistic is 13610, which is quite high and favorable to consider this model a good fit.
+
+#variable names starting with a number to be corrected for use with modelling.
+names(train) <- make.names(names(train))
+
+Points_Reg <- lm(PTS ~ X2PA + X3PA + FTA + AST + ORB + DRB + TOV + STL + BLK, data = train)
+summary(Points_Reg)
+
+sse <- sum(Points_Reg$residuals ^ 2)
+rmse <- sqrt(sse/nrow(train))
+
+#remove insignifant variables:
+Points_Reg2 <- lm(PTS ~ X2PA + X3PA + FTA + AST + ORB + STL, data = train)
+summary(Points_Reg2)
+
+sse_2 <- sum(Points_Reg2$residuals^2)
+rmse_2 <- sqrt(sse_2/nrow(train))
+
+
+# the new model gives more accurate predictions as can be seen by the difference in SSE and RMSE.
+sse_2 - sse
+rmse_2 - rmse
+
+
+unique(train$SeasonEnd)
+
+```
+```{r}
+
+RegVar = train[c("X2PA", "X3PA", "FTA", "AST", "ORB", "STL")]
+
+test <- read_csv("NBA_test.csv")
+names(test) <- make.names(names(test))
+
+points_prediction <- predict(Points_Reg2, newdata= test)
+
+sse_pred <- sum((points_prediction - test$PTS)^2)
+SST_pred <- sum((mean(train$PTS) - test$PTS)^2)
+
+r_squared <- 1- sse_pred/SST_pred
+
+rmse_pred <- sqrt(sse_pred/ nrow(test))
+
+```
+
